@@ -107,7 +107,7 @@ const getDay = function (unixObject: number) {
     return "";
   }
   const a = new Date(unixObject * 1000);
-  return Intl.DateTimeFormat("en-US", { weekday: "long" }).format(a);
+  return Intl.DateTimeFormat("en-US", { weekday: "short" }).format(a);
 };
 
 export {

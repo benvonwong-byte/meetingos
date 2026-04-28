@@ -1,0 +1,22 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for when2meet clone",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "firebase-functions": "^7.2.5",
+    "joi": "^17.4.0",
+    "mongoose": "^5.12.11"
+  },
+  "private": true
+}

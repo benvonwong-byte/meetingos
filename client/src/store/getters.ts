@@ -44,7 +44,7 @@ export const getters: GetterTree<State, State> & Getters = {
     const numofTimings = getters.getTimeLabels.length;
     const arr = Object.keys(state.eventData.availability);
     const days = chunk(arr, numofTimings);
-    const NUMBER_OF_DAYS_PER_PAGE = 6;
+    const NUMBER_OF_DAYS_PER_PAGE = 5;
     return chunk(days, NUMBER_OF_DAYS_PER_PAGE);
   },
 
