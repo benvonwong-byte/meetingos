@@ -9,7 +9,11 @@
       </router-link>
       <div class="nav-right" v-if="userName">
         <span class="nav-greeting">{{ userName }}</span>
-        <button class="nav-signout" @click="signOut">Sign out</button>
+        <button v-if="isParticipant" class="nav-avatar" @click="profileOpen = true" :title="userName">
+          <img v-if="profileHeadshot" :src="profileHeadshot" class="nav-avatar-img" :alt="userName" />
+          <span v-else class="nav-avatar-initials">{{ avatarInitials }}</span>
+        </button>
+        <button v-else class="nav-signout" @click="signOut">Sign out</button>
       </div>
     </header>
     <main class="app-main">
@@ -19,35 +23,60 @@
         </transition>
       </router-view>
     </main>
+    <ProfilePanel
+      v-if="profileOpen"
+      @close="profileOpen = false"
+      @logout="onProfileLogout"
+    />
   </div>
 </template>
 
 <script>
 import { ref, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import ProfilePanel from "./components/ProfilePanel.vue";
 
 export default {
+  components: { ProfilePanel },
   setup() {
     const router = useRouter();
     const route = useRoute();
     const userName = ref(localStorage.getItem("dc_user_name") || "");
+    const profileOpen = ref(false);
+    const profileHeadshot = ref("");
 
     const isLoginPage = computed(() => route.name === "login");
+    const isParticipant = computed(() => {
+      const id = localStorage.getItem("dc_record_id") || "";
+      return id.startsWith("rec");
+    });
+    const avatarInitials = computed(() =>
+      userName.value.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase()
+    );
 
     watch(
       () => route.name,
-      () => {
-        userName.value = localStorage.getItem("dc_user_name") || "";
-      }
+      () => { userName.value = localStorage.getItem("dc_user_name") || ""; }
     );
 
     const signOut = () => {
       localStorage.removeItem("dc_user_name");
+      localStorage.removeItem("dc_record_id");
       userName.value = "";
       router.push("/login");
     };
 
-    return { userName, isLoginPage, signOut };
+    const onProfileLogout = () => {
+      userName.value = "";
+      profileOpen.value = false;
+      router.push("/login");
+    };
+
+    return {
+      userName, isLoginPage, isParticipant, avatarInitials,
+      profileOpen, profileHeadshot,
+      signOut, onProfileLogout,
+    };
   },
 };
 </script>
@@ -197,6 +226,19 @@ input, select, textarea { font-family: var(--font-body); }
     color: var(--text-secondary);
     border-color: var(--border-hover);
   }
+}
+
+.nav-avatar {
+  width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--border-hover);
+  background: rgba(232, 93, 74, 0.15); cursor: pointer; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.2s, transform 0.15s;
+  padding: 0;
+  &:hover { border-color: var(--accent); transform: scale(1.06); }
+}
+.nav-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nav-avatar-initials {
+  font-size: 0.65rem; font-weight: 700; color: var(--accent); letter-spacing: 0.02em;
 }
 
 .app-main {
