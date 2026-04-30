@@ -41,6 +41,35 @@ function airtableFetch(path, pat) {
   });
 }
 
+function airtableRequest(method, path, pat, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: "api.airtable.com",
+      path,
+      method,
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        ...(bodyStr && {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(bodyStr),
+        }),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch (e) { reject(e); }
+      });
+    });
+    req.on("error", reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
 async function fetchAllParticipants(pat) {
   const fields = ["Title", "Data Type", "Subtitle", "Short Bio"]
     .map((f) => `fields%5B%5D=${encodeURIComponent(f)}`)
@@ -112,6 +141,37 @@ app.post("/api/verify", async (req, res) => {
     res.json({ success: true, name: (data.fields.Title || "").trim() });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get("/api/profile", async (req, res) => {
+  const { recordId } = req.query;
+  if (!recordId || !recordId.startsWith("rec")) {
+    return res.status(400).json({ error: "Invalid recordId" });
+  }
+  try {
+    const pat = process.env.AIRTABLE_PAT;
+    const { body } = await airtableRequest(
+      "GET",
+      `/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${encodeURIComponent(recordId)}`,
+      pat
+    );
+    if (body.error) return res.status(404).json({ error: "Record not found" });
+    const f = body.fields || {};
+    const headshotArr = f.Headshot || [];
+    res.json({
+      id: body.id,
+      name: f.Title || "",
+      subtitle: f.Subtitle || "",
+      bio: f["Short Bio"] || "",
+      linkedin: f["Main Social Link/Website"] || "",
+      email: f["Email Contact"] || "",
+      phone: f["Phone Contact"] || "",
+      tags: f.Hashtags || [],
+      headshot: headshotArr[0]?.url || "",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
