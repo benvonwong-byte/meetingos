@@ -3,16 +3,21 @@
     <div class="login-card">
 
       <div class="brand-mark">
-        <img src="/pigeon-logo.svg" alt="Dear Crisis" class="pigeon-logo" />
+        <img src="/pigeon-logo.svg" alt="Metacrisis Salon" class="pigeon-logo" />
       </div>
-      <div class="brand-name">Dear Crisis</div>
-      <div class="brand-sub">Community Scheduling Assistant</div>
+      <div class="brand-name">Metacrisis Salon 9</div>
+      <div class="brand-sub">Community Scheduling</div>
       <div class="divider"></div>
 
-      <!-- Step 1: Pick name -->
+      <!-- Step 1: Name search -->
       <template v-if="step === 'name'">
         <h1 class="login-title">Who are you?</h1>
-        <p class="login-desc">Type your name to find yourself.</p>
+        <p class="login-desc" v-if="isJoinMode">
+          Find your name below, or join as a guest.
+        </p>
+        <p class="login-desc" v-else>
+          Type your name to find yourself.
+        </p>
 
         <div class="picker">
           <div class="search-wrap">
@@ -29,7 +34,7 @@
             />
           </div>
 
-          <!-- Matching names — only when ≤3 results -->
+          <!-- Matching community member names -->
           <div class="list-wrap" v-if="filtered.length > 0">
             <div
               v-for="p in filtered"
@@ -46,18 +51,35 @@
             </div>
           </div>
 
-          <!-- Status hints below the input -->
+          <!-- Status hints -->
           <p v-if="searchStatus === 'loading'" class="search-hint">Loading names…</p>
           <p v-else-if="searchStatus === 'narrow'" class="search-hint">Keep typing to narrow it down…</p>
           <p v-else-if="searchStatus === 'error'" class="search-hint error">{{ listError }}</p>
+          <p v-else-if="searchStatus === 'empty' && !isJoinMode" class="search-hint">
+            Not found in the community list.
+          </p>
 
-          <!-- New participant option when name isn't found -->
-          <div v-else-if="searchStatus === 'empty'" class="new-participant">
-            <p class="search-hint">Not found in the list.</p>
-            <button class="new-participant-btn" @click="continueAsNew">
-              Join as "{{ query.trim() }}"
-            </button>
+          <!-- Member mode: onboarding when not found -->
+          <div v-if="searchStatus === 'empty' && !isJoinMode" class="onboarding-block">
+            <p class="onboarding-text">
+              To become a Dear Crisis community member, attend one of our gatherings.
+            </p>
+            <a href="https://www.dearcrisis.com" target="_blank" rel="noopener" class="onboarding-link">
+              Visit DearCrisis.com →
+            </a>
           </div>
+
+          <!-- Join mode: guest path -->
+          <template v-if="isJoinMode && query.trim()">
+            <div class="guest-divider"><span>or</span></div>
+            <button
+              v-if="query.trim()"
+              class="guest-btn"
+              @click="continueAsGuest"
+            >
+              Join as "{{ query.trim() }}" (guest)
+            </button>
+          </template>
         </div>
       </template>
 
@@ -86,7 +108,7 @@
         </form>
       </template>
 
-      <p class="login-footer">Powered by <span class="footer-brand">Dear Crisis</span></p>
+      <p class="login-footer">Powered by <span class="footer-brand">Dear Crisis</span> · Metacrisis Salon 9</p>
     </div>
   </div>
 </template>
@@ -95,7 +117,7 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 
-const MAX_RESULTS = 3;
+const MAX_RESULTS = 5;
 
 export default {
   name: "Login",
@@ -103,6 +125,7 @@ export default {
     const router = useRouter();
     const route  = useRoute();
 
+    const isJoinMode = route.query.mode === "join";
     const step = ref("name");
 
     // Step 1
@@ -120,14 +143,12 @@ export default {
     const verifyError = ref("");
     const phoneRef    = ref(null);
 
-    // All matches regardless of count (used for status)
     const allMatches = computed(() => {
       const q = query.value.trim().toLowerCase();
-      if (q.length < 2) return null; // null = not searching yet
+      if (q.length < 2) return null;
       return participants.value.filter((p) => p.name.toLowerCase().includes(q));
     });
 
-    // Only expose results when narrowed to ≤ MAX_RESULTS
     const filtered = computed(() => {
       if (!allMatches.value) return [];
       return allMatches.value.length <= MAX_RESULTS ? allMatches.value : [];
@@ -141,10 +162,9 @@ export default {
       if (!allMatches.value) return null;
       if (allMatches.value.length === 0) return "empty";
       if (allMatches.value.length > MAX_RESULTS) return "narrow";
-      return null; // results are showing, no hint needed
+      return null;
     });
 
-    // Fire-and-forget: don't block the UI, load names silently
     const loadParticipants = async () => {
       loadingList.value = true;
       listError.value   = null;
@@ -161,14 +181,14 @@ export default {
     };
 
     onMounted(() => {
-      loadParticipants(); // intentionally not awaited
+      loadParticipants();
       nextTick(() => searchRef.value?.focus());
     });
 
     const initials = (name) =>
       name.split(" ").map((w) => w[0]).join("").substring(0, 2).toUpperCase();
 
-    const continueAsNew = () => {
+    const continueAsGuest = () => {
       const name = query.value.trim();
       if (!name) return;
       const id = Math.random().toString(36).substring(2, 11);
@@ -178,7 +198,6 @@ export default {
       router.push(typeof redirect === "string" ? redirect : "/");
     };
 
-    // Clicking a name goes directly to phone verification
     const selectAndContinue = (p) => {
       selected.value    = p;
       step.value        = "phone";
@@ -216,10 +235,11 @@ export default {
     };
 
     return {
+      isJoinMode,
       step, loadingList, listError, query, selected, filtered,
       searchRef, searchFocused, searchStatus,
       phone, verifying, verifyError, phoneRef,
-      selectAndContinue, continueAsNew, initials, verifyPhone,
+      selectAndContinue, continueAsGuest, initials, verifyPhone,
     };
   },
 };
@@ -276,12 +296,6 @@ export default {
 
 .divider { width: 28px; height: 1px; background: var(--border-hover); margin: 20px auto; }
 
-.event-badge {
-  display: inline-block; font-size: .68rem; font-weight: 600; letter-spacing: .12em;
-  text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
-  border: 1px solid rgba(232,93,74,.25); border-radius: 100px; padding: 4px 14px; margin-bottom: 18px;
-}
-
 .login-title {
   font-family: var(--font-display);
   font-size: 1.8rem; font-weight: 700; letter-spacing: -.04em; color: var(--text); margin-bottom: 6px;
@@ -305,7 +319,7 @@ export default {
   font-size: 1.1rem; color: var(--text-dim); pointer-events: none;
 }
 
-/* Search status hints */
+/* Status hints */
 .search-hint {
   font-size: .78rem; color: var(--text-dim); text-align: center; padding: 4px 0;
   &.error { color: #f07060; }
@@ -335,15 +349,42 @@ export default {
 .person-sub  { font-size: .73rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .person-arrow { font-size: .85rem; color: var(--text-dim); flex-shrink: 0; }
 
-/* New participant */
-.new-participant { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.new-participant-btn {
-  padding: 10px 20px; font-size: .85rem; font-weight: 600;
-  background: rgba(245,240,232,.06); border: 1px solid var(--border-hover);
-  border-radius: var(--radius-xs); color: var(--text); cursor: pointer;
+/* Onboarding block (member mode, name not found) */
+.onboarding-block {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 14px 16px; margin-top: 2px;
+  background: rgba(245,240,232,.03); border: 1px solid var(--border);
+  border-radius: var(--radius-xs); text-align: center;
+}
+.onboarding-text {
+  font-size: .8rem; color: var(--text-secondary); line-height: 1.5;
+}
+.onboarding-link {
+  font-size: .8rem; font-weight: 600; color: var(--accent);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+/* Guest divider + button (join mode) */
+.guest-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-dim); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+  margin: 2px 0;
+  &::before, &::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+}
+.guest-btn {
+  width: 100%; padding: 11px 16px;
+  background: rgba(232,93,74,.05); border: 1px solid rgba(232,93,74,.35);
+  border-radius: var(--radius-xs); color: var(--accent);
+  font-size: .85rem; font-weight: 500; cursor: pointer;
   transition: background .15s, border-color .15s;
-  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  &:hover { background: rgba(245,240,232,.12); border-color: rgba(245,240,232,.3); }
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  &:hover {
+    background: rgba(232,93,74,.10);
+    border-color: rgba(232,93,74,.6);
+  }
 }
 
 /* Phone step */
