@@ -175,6 +175,35 @@ app.get("/api/profile", async (req, res) => {
   }
 });
 
+app.patch("/api/profile", async (req, res) => {
+  const { recordId, fields } = req.body || {};
+  if (!recordId || !recordId.startsWith("rec")) {
+    return res.status(400).json({ error: "Invalid recordId" });
+  }
+  if (!fields || typeof fields !== "object") {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+  const allowed = ["Title", "Subtitle", "Short Bio", "Main Social Link/Website",
+                   "Email Contact", "Phone Contact", "Hashtags"];
+  const safe = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) safe[key] = fields[key];
+  }
+  try {
+    const pat = process.env.AIRTABLE_PAT;
+    const { status, body } = await airtableRequest(
+      "PATCH",
+      `/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${encodeURIComponent(recordId)}`,
+      pat,
+      { fields: safe }
+    );
+    if (body.error) return res.status(status).json({ error: body.error.message });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- MongoDB ---
 let isConnected = false;
 
