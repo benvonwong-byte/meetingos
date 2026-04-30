@@ -53,7 +53,11 @@
           <div class="pp-field">
             <div class="pp-label-row">
               <label class="pp-label">Subtitle <span class="pp-label-hint">— your one-liner</span></label>
-              <PrivacyToggle :isPublic="privacy.subtitle" @toggle="toggle('subtitle')" />
+              <button type="button" :class="['pp-privacy-toggle', privacy.subtitle ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private']" @click="toggle('subtitle')">
+                <svg v-if="privacy.subtitle" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {{ privacy.subtitle ? 'Public' : 'Private' }}
+              </button>
             </div>
             <input class="pp-input" v-model="subtitle"
               placeholder="e.g. Building the Community That Survives the Crisis" />
@@ -62,7 +66,11 @@
           <div class="pp-field">
             <div class="pp-label-row">
               <label class="pp-label">Short bio</label>
-              <PrivacyToggle :isPublic="privacy.bio" @toggle="toggle('bio')" />
+              <button type="button" :class="['pp-privacy-toggle', privacy.bio ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private']" @click="toggle('bio')">
+                <svg v-if="privacy.bio" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {{ privacy.bio ? 'Public' : 'Private' }}
+              </button>
             </div>
             <textarea class="pp-input pp-textarea" v-model="bio" rows="3"
               placeholder="A sentence or two about who you are and what you care about" />
@@ -71,7 +79,11 @@
           <div class="pp-field">
             <div class="pp-label-row">
               <label class="pp-label">LinkedIn / website</label>
-              <PrivacyToggle :isPublic="privacy.linkedin" @toggle="toggle('linkedin')" />
+              <button type="button" :class="['pp-privacy-toggle', privacy.linkedin ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private']" @click="toggle('linkedin')">
+                <svg v-if="privacy.linkedin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {{ privacy.linkedin ? 'Public' : 'Private' }}
+              </button>
             </div>
             <input class="pp-input" v-model="linkedin" placeholder="https://linkedin.com/in/..." />
           </div>
@@ -90,7 +102,11 @@
           <div class="pp-field">
             <div class="pp-label-row">
               <label class="pp-label">Email</label>
-              <PrivacyToggle :isPublic="privacy.email" @toggle="toggle('email')" />
+              <button type="button" :class="['pp-privacy-toggle', privacy.email ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private']" @click="toggle('email')">
+                <svg v-if="privacy.email" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {{ privacy.email ? 'Public' : 'Private' }}
+              </button>
             </div>
             <input class="pp-input" type="email" v-model="email" placeholder="your@email.com" />
           </div>
@@ -98,7 +114,11 @@
           <div class="pp-field">
             <div class="pp-label-row">
               <label class="pp-label">Phone</label>
-              <PrivacyToggle :isPublic="privacy.phone" @toggle="toggle('phone')" />
+              <button type="button" :class="['pp-privacy-toggle', privacy.phone ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private']" @click="toggle('phone')">
+                <svg v-if="privacy.phone" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                {{ privacy.phone ? 'Public' : 'Private' }}
+              </button>
             </div>
             <input class="pp-input" type="tel" v-model="phone" placeholder="+1 (555) 000-0000" />
           </div>
@@ -145,26 +165,6 @@ function savePrivacy(recordId, privacy) {
 
 export default {
   name: "ProfilePanel",
-  components: {
-    PrivacyToggle: {
-      props: ["isPublic"],
-      emits: ["toggle"],
-      template: `
-        <button type="button" class="pp-privacy-toggle"
-          :class="isPublic ? 'pp-privacy-toggle--public' : 'pp-privacy-toggle--private'"
-          @click="$emit('toggle')">
-          <svg v-if="isPublic" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-          </svg>
-          <svg v-else width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-            <line x1="1" y1="1" x2="23" y2="23"/>
-          </svg>
-          {{ isPublic ? 'Public' : 'Private' }}
-        </button>
-      `,
-    },
-  },
   emits: ["close", "logout"],
   setup(_, { emit }) {
     const recordId = localStorage.getItem("dc_record_id") || "";
