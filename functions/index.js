@@ -12,6 +12,7 @@ const AIRTABLE_PAT = defineSecret("AIRTABLE_PAT");
 const AIRTABLE_BASE  = "appLtX5g0cVrAlLkl";
 const AIRTABLE_TABLE = "tblpvnCFglIv3Uffy";
 const AIRTABLE_VIEW  = "viwDvOqur60rZWejg";
+const HEADSHOT_FIELD_ID = "fldqWT44zsitEWjcU";
 
 const app = express();
 app.use(express.json());
@@ -199,6 +200,47 @@ app.patch("/api/profile", async (req, res) => {
     );
     if (body.error) return res.status(status).json({ error: body.error.message });
     res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/upload-photo", async (req, res) => {
+  const { recordId, fileData, contentType } = req.body || {};
+  if (!recordId || !recordId.startsWith("rec") || !fileData) {
+    return res.status(400).json({ error: "Missing recordId or fileData" });
+  }
+  const pat = process.env.AIRTABLE_PAT;
+  const buf = Buffer.from(fileData, "base64");
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: "content.airtable.com",
+        path: `/v0/${AIRTABLE_BASE}/${encodeURIComponent(recordId)}/${HEADSHOT_FIELD_ID}/uploadAttachment`,
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${pat}`,
+          "Content-Type": contentType || "image/jpeg",
+          "x-airtable-content-length-for-audit": buf.byteLength,
+          "Content-Length": buf.byteLength,
+        },
+      };
+      const req2 = https.request(options, (r) => {
+        let d = "";
+        r.on("data", (c) => (d += c));
+        r.on("end", () => {
+          try { resolve(JSON.parse(d)); } catch (e) { reject(e); }
+        });
+      });
+      req2.on("error", reject);
+      req2.write(buf);
+      req2.end();
+    });
+
+    if (result.error) return res.status(400).json({ error: result.error.message });
+    const url = result.fields?.Headshot?.[0]?.url || "";
+    res.json({ url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
