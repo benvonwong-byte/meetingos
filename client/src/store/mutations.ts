@@ -47,13 +47,21 @@ export const mutations: MutationTree<State> & Mutations = {
     });
   },
   [MutationType.AddUserName](state, user) {
-    state.eventData.users.push(user);
+    if (!state.eventData.users.some((u) => u.id === user.id)) {
+      state.eventData.users.push(user);
+    }
     state.userID = user.id;
   },
   [MutationType.RetrieveUserID](state, eventID) {
     const userStorage = localStorage.getItem(eventID);
     if (userStorage != null) {
-      state.userID = userStorage;
+      const isValid = state.eventData.users.some((u) => u.id === userStorage);
+      if (isValid) {
+        state.userID = userStorage;
+      } else {
+        // Stale or ghost ID — clear so auto-register fires with correct ID
+        localStorage.removeItem(eventID);
+      }
     }
   },
   [MutationType.updateHover](state, unixtime) {
