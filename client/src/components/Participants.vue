@@ -8,7 +8,9 @@
       class="participant"
       v-for="participant in participants"
       :style="styleBindingParticipant(participant)"
+      :class="{ selected: selectedParticipantId === participant.id }"
       :key="participant.id"
+      @click="toggleParticipant(participant.id)"
     >
       <span class="participant-dot"></span>
       <p class="participant-name">{{ participant.name }}</p>
@@ -22,6 +24,9 @@ export default {
     participants() {
       return this.$store.getters.getParticipantList;
     },
+    selectedParticipantId() {
+      return this.$store.state.selectedParticipantId;
+    },
   },
   methods: {
     styleBindingParticipant(participant) {
@@ -30,6 +35,10 @@ export default {
         return { opacity: "0.3" };
       }
       return {};
+    },
+    toggleParticipant(id) {
+      const current = this.$store.state.selectedParticipantId;
+      this.$store.dispatch("SET_SELECTED_PARTICIPANT", current === id ? null : id);
     },
   },
 };
@@ -63,6 +72,22 @@ export default {
   gap: 8px;
   margin-bottom: 8px;
   transition: opacity 0.15s ease;
+  cursor: pointer;
+
+  &.selected .participant-name {
+    color: var(--text);
+    border-bottom: 1px solid hsla(45, 90%, 60%, 0.6);
+  }
+
+  &.selected .participant-dot {
+    box-shadow: 0 0 0 2px hsla(45, 90%, 60%, 0.5);
+  }
+
+  @media (hover: hover) {
+    &:hover .participant-name {
+      color: var(--text);
+    }
+  }
 }
 
 .participant-dot {
