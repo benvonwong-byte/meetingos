@@ -21,10 +21,12 @@ export interface State {
   eventData: EventData;
   userID: string;
   currentHover: string[];
+  selectedParticipantId: string | null;
 }
 
 export const state: State = {
   eventData: <EventData>{},
   userID: "",
   currentHover: [],
+  selectedParticipantId: null,
 };
