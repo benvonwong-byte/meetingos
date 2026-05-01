@@ -10,6 +10,7 @@ export enum MutationType {
   RetrieveUserID = "RETRIEVE_USERID",
   updateHover = "UPDATE_HOVER",
   removeSelfAvailability = "REMOVE_SELF_AVAILABILITY",
+  setSelectedParticipant = "SET_SELECTED_PARTICIPANT",
 }
 
 export type Mutations = {
@@ -22,6 +23,7 @@ export type Mutations = {
   [MutationType.AddUserName](state: State, user: User): void;
   [MutationType.RetrieveUserID](state: State, content: any): void;
   [MutationType.updateHover](state: State, unixtime: string): void;
+  [MutationType.setSelectedParticipant](state: State, id: string | null): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -67,5 +69,8 @@ export const mutations: MutationTree<State> & Mutations = {
         unixtime
       ].filter((userid) => userid !== state.userID);
     }
+  },
+  [MutationType.setSelectedParticipant](state, id) {
+    state.selectedParticipantId = id;
   },
 };
