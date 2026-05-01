@@ -60,31 +60,56 @@ router.post("/add", function (req, res) {
     .catch((err) => res.status(400).json("Error: " + err));
 });
 
-router.put("/:id/adduser", function (req, res) {
+router.put("/:id/adduser", async function (req, res) {
   const userName = req.body.user;
+  const event = await user.findById(req.params.id);
+  if (!event) return res.status(404).json("Not found");
+
+  // Same name already exists — return existing ID (same person, different device)
+  const existing = event.users.find(u => u.name === userName);
+  if (existing) return res.json({ message: "Already registered", id: existing.id });
+
   const ID = IDGenerator();
-  const userObject = { id: ID, name: userName };
   user
     .updateOne(
       { _id: req.params.id },
-      { $push: { users: userObject } },
+      { $push: { users: { id: ID, name: userName } } },
       { runValidators: true }
     )
     .then(() => res.json({ message: "Successfully added user", id: ID }))
     .catch((err) => console.log(err));
 });
 
-router.put("/:id/update", function (req, res) {
+router.put("/:id/update", async function (req, res) {
+  const { userId, slots } = req.body;
+
+  if (userId !== undefined && slots !== undefined) {
+    // Atomic per-user update: only touch this user's presence in each slot
+    const event = await user.findById(req.params.id);
+    if (!event) return res.status(404).json("Not found");
+
+    const slotSet = new Set(slots);
+    const setOps = {};
+    for (const [slot, ids] of Object.entries(event.availability)) {
+      const hasUser = ids.includes(userId);
+      const shouldHave = slotSet.has(slot);
+      if (hasUser !== shouldHave) {
+        setOps[`availability.${slot}`] = shouldHave
+          ? [...ids, userId]
+          : ids.filter(id => id !== userId);
+      }
+    }
+    if (Object.keys(setOps).length > 0) {
+      await user.updateOne({ _id: req.params.id }, { $set: setOps });
+    }
+    return res.json({ message: "OK" });
+  }
+
+  // Legacy fallback (old full-replacement format)
   const avail = req.body.availability;
   user
-    .updateOne(
-      { _id: req.params.id },
-      { availability: avail },
-      { runValidators: true }
-    )
-    .then(() =>
-      res.json({ message: "Successfully updated availability of user" })
-    );
+    .updateOne({ _id: req.params.id }, { availability: avail }, { runValidators: true })
+    .then(() => res.json({ message: "OK" }));
 });
 
 module.exports = router;
