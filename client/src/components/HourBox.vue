@@ -1,13 +1,13 @@
 <template>
   <div
     class="hour"
-    :style="styleBinding(availability[hour])"
+    :style="styleBinding(availability[hour], i)"
     :class="[
       idx === 0 ? 'first' : '',
       !viewMode && isSelected(hour) ? 'selected' : '',
       viewMode ? 'view-mode' : '',
     ]"
-    v-for="hour in day"
+    v-for="(hour, i) in day"
     :key="hour"
     :id="hour"
     @mousedown.prevent="!viewMode && onMouseDown($event, hour)"
@@ -200,7 +200,7 @@ export default {
 
     const selectedParticipantId = computed(() => store.state.selectedParticipantId);
 
-    const styleBinding = (arr) => {
+    const styleBinding = (arr, i) => {
       const style = {};
 
       if (arr && arr.length > 0) {
@@ -215,7 +215,15 @@ export default {
 
       const selId = selectedParticipantId.value;
       if (selId && arr && arr.includes(selId)) {
-        style["box-shadow"] = "inset 0 0 0 2px hsla(45, 90%, 60%, 0.8)";
+        const avail = store.getters.getAvailability;
+        const day   = props.day;
+        const prevSel = i > 0 && avail[day[i - 1]]?.includes(selId);
+        const nextSel = i < day.length - 1 && avail[day[i + 1]]?.includes(selId);
+        const c = "hsla(45, 90%, 60%, 0.8)";
+        const shadows = [`inset 2px 0 0 0 ${c}`, `inset -2px 0 0 0 ${c}`];
+        if (!prevSel) shadows.push(`inset 0 2px 0 0 ${c}`);
+        if (!nextSel) shadows.push(`inset 0 -2px 0 0 ${c}`);
+        style["box-shadow"] = shadows.join(", ");
       }
 
       return style;
