@@ -72,17 +72,21 @@ const timeLabelGenerator = function (start_time: string, end_time: string) {
  * Takes in the array of the first day and produces the labels for the time and date.
  * @param {array} title - The first array of the list of days
  */
+const parseLocalDate = (s: string): Date => {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d); // local midnight, avoids UTC-parse offset
+};
 const getLabelTop = function (start: string, end: string): string {
-  const first = new Date(start);
-  const last = new Date(end);
+  const first = parseLocalDate(start);
+  const last  = parseLocalDate(end);
   return (
     first.getDate() +
     " " +
-    monthNames[first.getMonth() + 1] +
+    monthNames[first.getMonth()] +
     " - " +
     last.getDate() +
     " " +
-    monthNames[last.getMonth() + 1]
+    monthNames[last.getMonth()]
   );
 };
 /**
@@ -99,15 +103,13 @@ function splitToChunks(obj: any, parts: number) {
   return result;
 }
 const getDate = function (unixObject: number): number {
-  const a = new Date(unixObject * 1000);
-  return a.getDate();
+  return new Date(unixObject * 1000).getUTCDate();
 };
 const getDay = function (unixObject: number) {
-  if (isNil(unixObject)) {
-    return "";
-  }
-  const a = new Date(unixObject * 1000);
-  return Intl.DateTimeFormat("en-US", { weekday: "short" }).format(a);
+  if (isNil(unixObject)) return "";
+  return Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(
+    new Date(unixObject * 1000)
+  );
 };
 
 export {

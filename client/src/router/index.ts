@@ -40,9 +40,9 @@ router.beforeEach((to) => {
   if (to.meta.public) return true;
   const name = localStorage.getItem("dc_user_name");
   if (!name) {
-    // Preserve destination so login can redirect back after auth
     const redirect = to.fullPath !== "/" ? to.fullPath : undefined;
-    return { name: "login", query: redirect ? { redirect } : {} };
+    const mode = to.name === "event" ? "join" : "member";
+    return { name: "login", query: { ...(redirect ? { redirect } : {}), mode } };
   }
   return true;
 });
