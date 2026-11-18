@@ -2,6 +2,20 @@
 
 meeting.dearcrisis.com is this repo: a Vue client (`client/`, built into `backend/public/`) on Firebase Hosting, with one Cloud Function `api` (`functions/index.js`) in Firebase project `meetingos-vonwong`.
 
+## 2026-11-18: deployed, the Arcos login is live
+
+Ben gave the go-ahead and `firebase deploy --only hosting,functions:api --project meetingos-vonwong` ran from `arcos-login`. The `api` function updated (Node 22, 2nd gen, us-central1) and hosting released.
+
+Verified on meeting.dearcrisis.com straight after:
+
+- `GET /api/arcos/roster?q=von` answers 200 with real Arcos people, so the relay reaches Arcos from Google's addresses as intended.
+- The shipped bundle `js/app.1ffbbfdc.js` calls only `/api/arcos/roster`, `/api/arcos/options`, `/api/arcos/start` and `/api/arcos/verify`. No Airtable call is left in the client.
+- `/api/participants` still answers 200, left in place for browsers holding the old cached page.
+
+Still unproven: a correct 6-digit code end to end. Testing it means Arcos texting or emailing a real person, so Ben signs in with his own profile once to close it out.
+
+**Wider ask, same day.** Ben asked for an audit of every tool we have built and for all of their logins to move to Arcos, the way beta.dearcrisis.com and now MeetingOS work. That work is tracked outside this repo; anything MeetingOS-specific lands here.
+
 ## 2026-11-17: sign-in through Arcos (branch `arcos-login`)
 
 **Ben's ask:** "People that should be able to login into this tool should be anyone with an Arcos profile or who is on our Arcos database."
@@ -29,7 +43,7 @@ meeting.dearcrisis.com is this repo: a Vue client (`client/`, built into `backen
 
 ## Waiting on Ben
 
-1. **Deploy** (needs Ben's go-ahead). From the repo root on `arcos-login`:
-   `firebase deploy --only hosting,functions:api --project meetingos-vonwong`
-   Then sign in on meeting.dearcrisis.com with a real profile to confirm a code arrives and is accepted.
-2. **Merge** the PR into `main` after the deploy is confirmed. Local `main` was 17 commits ahead of GitHub (the April profile and participant work); those are on this branch too.
+1. ~~**Deploy**~~ Done 2026-11-18, see the section above.
+2. **Sign in once on the live site** with your own profile, to prove a correct code arrives and is accepted. Nobody has done this yet.
+3. **Merge** `arcos-login` into `main` (needs Ben's go-ahead). Local `main` was 17 commits ahead of GitHub (the April profile and participant work); those are on this branch too.
+4. **Decide the Airtable cleanup.** `/api/participants` and `/api/verify` are dead to the client but still answer, and the profile panel still writes to Airtable for old `rec…` ids. Ben has not said whether to strip them or keep them as the safety net.
