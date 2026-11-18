@@ -1,0 +1,7 @@
+name = "dear-crisis-meeting"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+routes = [
+  { pattern = "meeting.dearcrisis.com/*", zone_name = "dearcrisis.com" }
+]

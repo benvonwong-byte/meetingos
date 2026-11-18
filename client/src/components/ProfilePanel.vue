@@ -3,7 +3,7 @@
     <div class="pp-panel">
       <!-- Header -->
       <div class="pp-header">
-        <img src="/pigeon-logo.svg" alt="Metacrisis Salon" class="pp-logo" />
+        <img :src="`${base}pigeon-logo.svg`" alt="Metacrisis Salon" class="pp-logo" />
         <button class="pp-close" @click="$emit('close')" aria-label="Close">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -149,6 +149,7 @@
 import { ref, computed, onMounted, nextTick } from "vue";
 import Cropper from "cropperjs";
 import "cropperjs/dist/cropper.css";
+import { api, BASE } from "../dcSession";
 
 const DEFAULT_PRIVACY = {
   subtitle: true, bio: true, linkedin: true, email: false, phone: false,
@@ -193,7 +194,7 @@ export default {
 
     onMounted(async () => {
       try {
-        const res = await fetch(`/api/profile?recordId=${encodeURIComponent(recordId)}`);
+        const res = await fetch(`${api("profile")}?recordId=${encodeURIComponent(recordId)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         name.value     = data.name || "";
@@ -217,7 +218,7 @@ export default {
       saving.value = true;
       saveError.value = "";
       try {
-        const res = await fetch("/api/profile", {
+        const res = await fetch(api("profile"), {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -289,7 +290,7 @@ export default {
       cancelCrop();
       uploadingPhoto.value = true;
       try {
-        const res = await fetch("/api/upload-photo", {
+        const res = await fetch(api("upload-photo"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ recordId, fileData: base64, contentType: "image/jpeg" }),
@@ -301,6 +302,7 @@ export default {
     };
 
     return {
+      base: BASE,
       loading, name, subtitle, bio, linkedin, email, phone, headshot,
       privacy, saving, saved, saveError, uploadingPhoto,
       photoInput, cropArea, cropSrc, initials,

@@ -3,7 +3,7 @@
     <div class="backdrop">
       <transition name="modal-slide" appear>
         <div class="modal" v-if="show">
-          <img src="/pigeon-logo.svg" alt="Dear Crisis" class="modal-pigeon" />
+          <img :src="`${base}pigeon-logo.svg`" alt="Dear Crisis" class="modal-pigeon" />
           <h2 class="modal-title">Mark your availability</h2>
           <p class="modal-desc">Confirm your name to add your schedule to this event.</p>
           <form @submit.prevent="handleSubmit" class="modal-form">
@@ -30,6 +30,7 @@ import { ref } from "vue";
 import { useStore } from "vuex";
 import { useRoute } from "vue-router";
 import { ActionTypes } from "../store/actions";
+import { BASE } from "../dcSession";
 
 export default {
   setup() {
@@ -48,7 +49,7 @@ export default {
       });
     };
 
-    return { name, handleSubmit, show };
+    return { base: BASE, name, handleSubmit, show };
   },
 };
 </script>
