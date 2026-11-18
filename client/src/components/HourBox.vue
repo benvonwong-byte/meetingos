@@ -1,13 +1,13 @@
 <template>
   <div
     class="hour"
-    :style="styleBinding(availability[hour])"
+    :style="styleBinding(availability[hour], i)"
     :class="[
       idx === 0 ? 'first' : '',
       !viewMode && isSelected(hour) ? 'selected' : '',
       viewMode ? 'view-mode' : '',
     ]"
-    v-for="hour in day"
+    v-for="(hour, i) in day"
     :key="hour"
     :id="hour"
     @mousedown.prevent="!viewMode && onMouseDown($event, hour)"
@@ -32,10 +32,9 @@ let _route           = null;
 let _emitInspect     = null;
 let _viewModeRef     = null;
 let _viewTouchActive = false;
-let _touchStartX     = 0;
-let _touchStartY     = 0;
-let _touchDir        = null; // null = undecided, 'h' = horizontal, 'v' = vertical
-const DIR_THRESHOLD  = 6;    // px before direction is locked
+let _twoFingerActive = false;
+let _twoFingerLastY  = 0;
+let _touchOnHour     = false;
 
 function _isSelected(hour) {
   if (!_store) return false;
@@ -55,7 +54,7 @@ function _applyHour(hour, action) {
 
 function _commitDrag() {
   _viewTouchActive = false;
-  _touchDir        = null;
+  _twoFingerActive = false;
   if (drag.touched.size > 0 && _store) {
     _store.dispatch(ActionTypes.updateDatabase);
   }
@@ -65,21 +64,24 @@ function _commitDrag() {
 }
 
 function _onTouchStart(event) {
+  if (event.touches.length >= 2) {
+    _twoFingerActive = true;
+    _touchOnHour     = false;
+    _twoFingerLastY  = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+    if (drag.active) _commitDrag();
+    return;
+  }
+
   const touch = event.touches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  if (!el || !el.classList.contains("hour")) return;
-  event.preventDefault();
-
-  _touchStartX = touch.clientX;
-  _touchStartY = touch.clientY;
-  _touchDir    = null;
+  _touchOnHour = !!(el && el.classList.contains("hour"));
+  if (!_touchOnHour) return;
 
   if (_viewModeRef && _viewModeRef.value) {
     _viewTouchActive = true;
     _emitInspect && _emitInspect({ hour: el.id });
     return;
   }
-
   drag.active = true;
   drag.action = _isSelected(el.id) ? "REMOVE" : "ADD";
   drag.touched.clear();
@@ -87,29 +89,27 @@ function _onTouchStart(event) {
 }
 
 function _onTouchMove(event) {
-  const touch = event.touches[0];
-
-  // Lock direction on first significant movement
-  if (_touchDir === null) {
-    const dx = Math.abs(touch.clientX - _touchStartX);
-    const dy = Math.abs(touch.clientY - _touchStartY);
-    if (Math.max(dx, dy) > DIR_THRESHOLD) {
-      _touchDir = dx >= dy ? 'h' : 'v';
+  if (_twoFingerActive || event.touches.length >= 2) {
+    _twoFingerActive = true;
+    if (event.touches.length >= 2) {
+      const midY = (event.touches[0].clientY + event.touches[1].clientY) / 2;
+      window.scrollBy(0, _twoFingerLastY - midY);
+      _twoFingerLastY = midY;
     }
+    event.preventDefault();
+    return;
   }
 
-  // Vertical scroll — let the browser handle it, don't interfere
-  if (_touchDir === 'v') return;
+  if (!_touchOnHour) return; // touch started outside calendar — don't interfere
 
   event.preventDefault();
 
+  const touch = event.touches[0];
   const el = document.elementFromPoint(touch.clientX, touch.clientY);
   if (!el || !el.classList.contains("hour")) return;
 
   if (_viewModeRef && _viewModeRef.value) {
-    if (_viewTouchActive) {
-      _emitInspect && _emitInspect({ hour: el.id });
-    }
+    if (_viewTouchActive) _emitInspect && _emitInspect({ hour: el.id });
     return;
   }
 
@@ -117,12 +117,18 @@ function _onTouchMove(event) {
   _applyHour(el.id, drag.action);
 }
 
+function _onTouchEnd(event) {
+  if (_touchOnHour) event.preventDefault(); // suppress click synthesis only for hour cell taps
+  _touchOnHour = false;
+  _commitDrag();
+}
+
 function _attachListeners() {
   if (_attached) return;
   _attached = true;
-  document.addEventListener("touchstart", _onTouchStart, { passive: false });
+  document.addEventListener("touchstart", _onTouchStart, { passive: true });
   document.addEventListener("touchmove",  _onTouchMove,  { passive: false });
-  document.addEventListener("touchend",   _commitDrag);
+  document.addEventListener("touchend",   _onTouchEnd);
   document.addEventListener("mouseup",    _commitDrag);
 }
 
@@ -131,7 +137,7 @@ function _detachListeners() {
   _attached = false;
   document.removeEventListener("touchstart", _onTouchStart);
   document.removeEventListener("touchmove",  _onTouchMove);
-  document.removeEventListener("touchend",   _commitDrag);
+  document.removeEventListener("touchend",   _onTouchEnd);
   document.removeEventListener("mouseup",    _commitDrag);
 }
 
@@ -192,18 +198,35 @@ export default {
       Math.max(store.state.eventData?.users?.length || 1, 1)
     );
 
-    const styleBinding = (arr) => {
-      if (!arr || arr.length === 0) return {};
-      const ratio = Math.min(arr.length / totalParticipants.value, 1);
-      // Power curve: 1 person out of many stays very faint; only near-full attendance looks rich
-      const curved     = Math.pow(ratio, 1.5);
-      const hue        = 145;
-      const saturation = Math.round(15 + curved * 70);   // 15% → 85%
-      const lightness  = Math.round(68 - curved * 38);   // 68% → 30%
-      const opacity    = 0.12 + curved * 0.83;           // 0.12 → 0.95
-      return {
-        "background-color": `hsla(${hue}, ${saturation}%, ${lightness}%, ${opacity})`,
-      };
+    const selectedParticipantId = computed(() => store.state.selectedParticipantId);
+
+    const styleBinding = (arr, i) => {
+      const style = {};
+
+      if (arr && arr.length > 0) {
+        const ratio = Math.min(arr.length / totalParticipants.value, 1);
+        const curved     = Math.pow(ratio, 1.5);
+        const hue        = 145;
+        const saturation = Math.round(15 + curved * 70);
+        const lightness  = Math.round(68 - curved * 38);
+        const opacity    = 0.12 + curved * 0.83;
+        style["background-color"] = `hsla(${hue}, ${saturation}%, ${lightness}%, ${opacity})`;
+      }
+
+      const selId = selectedParticipantId.value;
+      if (selId && arr && arr.includes(selId)) {
+        const avail = store.getters.getAvailability;
+        const day   = props.day;
+        const prevSel = i > 0 && avail[day[i - 1]]?.includes(selId);
+        const nextSel = i < day.length - 1 && avail[day[i + 1]]?.includes(selId);
+        const c = "hsla(45, 90%, 60%, 0.8)";
+        const shadows = [`inset 2px 0 0 0 ${c}`, `inset -2px 0 0 0 ${c}`];
+        if (!prevSel) shadows.push(`inset 0 2px 0 0 ${c}`);
+        if (!nextSel) shadows.push(`inset 0 -2px 0 0 ${c}`);
+        style["box-shadow"] = shadows.join(", ");
+      }
+
+      return style;
     };
 
     const isSelected = (hour) => {
@@ -213,6 +236,7 @@ export default {
 
     return {
       isSelected, onMouseDown, onMouseOver, onMouseOut, styleBinding,
+      selectedParticipantId,
       availability: computed(() => store.getters.getAvailability),
     };
   },
@@ -230,7 +254,7 @@ export default {
   transition: background-color 0.1s ease;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: pan-y;
+  touch-action: none;
 
   &.selected { box-shadow: inset 0 0 0 1.5px rgba(100, 200, 140, 0.45); }
   @media (hover: hover) {

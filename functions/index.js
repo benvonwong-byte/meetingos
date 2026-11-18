@@ -12,6 +12,7 @@ const AIRTABLE_PAT = defineSecret("AIRTABLE_PAT");
 const AIRTABLE_BASE  = "appLtX5g0cVrAlLkl";
 const AIRTABLE_TABLE = "tblpvnCFglIv3Uffy";
 const AIRTABLE_VIEW  = "viwDvOqur60rZWejg";
+const HEADSHOT_FIELD_ID = "fldqWT44zsitEWjcU";
 
 const app = express();
 app.use(express.json());
@@ -38,6 +39,35 @@ function airtableFetch(path, pat) {
         catch (e) { reject(e); }
       });
     }).on("error", reject);
+  });
+}
+
+function airtableRequest(method, path, pat, body) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? JSON.stringify(body) : null;
+    const options = {
+      hostname: "api.airtable.com",
+      path,
+      method,
+      headers: {
+        Authorization: `Bearer ${pat}`,
+        ...(bodyStr && {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(bodyStr),
+        }),
+      },
+    };
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch (e) { reject(e); }
+      });
+    });
+    req.on("error", reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
   });
 }
 
@@ -82,6 +112,116 @@ app.get("/api/participants", async (req, res) => {
   }
 });
 
+// --- Sign-in through Arcos (2026-11-17) ---
+// Anyone Arcos lets through the Dear Crisis door can sign in here: a member holding a profile, or
+// anyone on a Dear Crisis guest list. These four routes relay Arcos's own public door endpoints
+// (the same ones beta.dearcrisis.com's sign-in uses), because Arcos sends no CORS headers for this
+// origin. The space is fixed, inputs are checked before anything leaves, and the Arcos session that
+// a correct code returns is never passed to the browser: this app only needs to know who it is.
+const ARCOS = "https://www.arcos.network";
+const ARCOS_SPACE = "dearcrisisnyc";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function visitorIp(req) {
+  const fwd = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return fwd || req.ip || "";
+}
+
+async function arcosCall(req, path, body) {
+  const ip = visitorIp(req);
+  const headers = { Accept: "application/json" };
+  if (ip) headers["X-Forwarded-For"] = ip;
+  if (body) headers["Content-Type"] = "application/json";
+  const r = await fetch(`${ARCOS}${path}`, {
+    method: body ? "POST" : "GET",
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(20000),
+  });
+  let data = {};
+  try { data = await r.json(); } catch { data = {}; }
+  return { status: r.status, data };
+}
+
+const arcosPerson = (req) => {
+  const person = String((req.body || {}).person || "");
+  return UUID_RE.test(person) ? person : null;
+};
+const arcosBy = (req) => ((req.body || {}).by === "phone" ? { by: "phone" } : {});
+
+app.get("/api/arcos/roster", async (req, res) => {
+  const q = String(req.query.q || "").trim().slice(0, 80);
+  if (q.length < 2) return res.json({ people: [] });
+  try {
+    const { status, data } = await arcosCall(
+      req,
+      `/api/event/roster?space=${ARCOS_SPACE}&q=${encodeURIComponent(q)}`
+    );
+    if (status !== 200) return res.status(502).json({ error: "roster-failed" });
+    const people = Array.isArray(data.people)
+      ? data.people.filter((p) => p && p.id && p.name).map((p) => ({ id: String(p.id), name: String(p.name) }))
+      : [];
+    res.json({ people });
+  } catch (err) {
+    res.status(502).json({ error: "offline" });
+  }
+});
+
+app.post("/api/arcos/options", async (req, res) => {
+  const person = arcosPerson(req);
+  if (!person) return res.status(400).json({ ok: false, error: "no-person" });
+  try {
+    const { status, data } = await arcosCall(req, "/api/event/claim-options", { space: ARCOS_SPACE, person });
+    res.status(status).json({
+      ok: !!data.ok,
+      error: data.error,
+      mode: data.mode,
+      phone: data.phone && data.phone.masked ? { masked: String(data.phone.masked) } : null,
+      email: data.email && data.email.masked ? { masked: String(data.email.masked) } : null,
+    });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: "offline" });
+  }
+});
+
+app.post("/api/arcos/start", async (req, res) => {
+  const person = arcosPerson(req);
+  if (!person) return res.status(400).json({ ok: false, error: "no-person" });
+  try {
+    const { status, data } = await arcosCall(req, "/api/event/claim-start", {
+      space: ARCOS_SPACE, person, app: "community", ...arcosBy(req),
+    });
+    res.status(status).json({
+      ok: !!data.ok, error: data.error, message: data.message, ref: data.ref,
+      mode: data.mode, masked: data.masked ? String(data.masked) : "",
+    });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: "offline" });
+  }
+});
+
+app.post("/api/arcos/verify", async (req, res) => {
+  const person = arcosPerson(req);
+  const code = String((req.body || {}).code || "").trim();
+  if (!person) return res.status(400).json({ ok: false, error: "no-person" });
+  if (!/^\d{6}$/.test(code)) return res.status(400).json({ ok: false, error: "bad-code" });
+  try {
+    const { status, data } = await arcosCall(req, "/api/event/claim-verify", {
+      space: ARCOS_SPACE, person, code, ...arcosBy(req),
+    });
+    const claimed = data.claimed || {};
+    // No Arcos session is sent from here, so a success always comes with a fresh one: proof of the code
+    if (!data.ok || !data.access_token || claimed.person !== person) {
+      return res.status(status === 200 ? 401 : status).json({
+        ok: false, error: data.error || "bad-code", message: data.message, ref: data.ref,
+      });
+    }
+    res.json({ ok: true, person, name: String(claimed.title || "").trim() });
+  } catch (err) {
+    res.status(502).json({ ok: false, error: "offline" });
+  }
+});
+
 // Normalize phone: keep digits only, compare last 10 digits
 function normalizePhone(raw) {
   const digits = (raw || "").replace(/\D/g, "");
@@ -115,6 +255,107 @@ app.post("/api/verify", async (req, res) => {
   }
 });
 
+app.get("/api/profile", async (req, res) => {
+  const { recordId } = req.query;
+  if (!recordId || !recordId.startsWith("rec")) {
+    return res.status(400).json({ error: "Invalid recordId" });
+  }
+  try {
+    const pat = process.env.AIRTABLE_PAT;
+    const { body } = await airtableRequest(
+      "GET",
+      `/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${encodeURIComponent(recordId)}`,
+      pat
+    );
+    if (body.error) return res.status(404).json({ error: "Record not found" });
+    const f = body.fields || {};
+    const headshotArr = f.Headshot || [];
+    res.json({
+      id: body.id,
+      name: f.Title || "",
+      subtitle: f.Subtitle || "",
+      bio: f["Short Bio"] || "",
+      linkedin: f["Main Social Link/Website"] || "",
+      email: f["Email Contact"] || "",
+      phone: f["Phone Contact"] || "",
+      tags: f.Hashtags || [],
+      headshot: headshotArr[0]?.url || "",
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch("/api/profile", async (req, res) => {
+  const { recordId, fields } = req.body || {};
+  if (!recordId || !recordId.startsWith("rec")) {
+    return res.status(400).json({ error: "Invalid recordId" });
+  }
+  if (!fields || typeof fields !== "object") {
+    return res.status(400).json({ error: "Missing fields" });
+  }
+  const allowed = ["Title", "Subtitle", "Short Bio", "Main Social Link/Website",
+                   "Email Contact", "Phone Contact", "Hashtags"];
+  const safe = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) safe[key] = fields[key];
+  }
+  try {
+    const pat = process.env.AIRTABLE_PAT;
+    const { status, body } = await airtableRequest(
+      "PATCH",
+      `/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}/${encodeURIComponent(recordId)}`,
+      pat,
+      { fields: safe }
+    );
+    if (body.error) return res.status(status).json({ error: body.error.message });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/upload-photo", async (req, res) => {
+  const { recordId, fileData, contentType } = req.body || {};
+  if (!recordId || !recordId.startsWith("rec") || !fileData) {
+    return res.status(400).json({ error: "Missing recordId or fileData" });
+  }
+  const pat = process.env.AIRTABLE_PAT;
+  const buf = Buffer.from(fileData, "base64");
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: "content.airtable.com",
+        path: `/v0/${AIRTABLE_BASE}/${encodeURIComponent(recordId)}/${HEADSHOT_FIELD_ID}/uploadAttachment`,
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${pat}`,
+          "Content-Type": contentType || "image/jpeg",
+          "x-airtable-content-length-for-audit": buf.byteLength,
+          "Content-Length": buf.byteLength,
+        },
+      };
+      const req2 = https.request(options, (r) => {
+        let d = "";
+        r.on("data", (c) => (d += c));
+        r.on("end", () => {
+          try { resolve(JSON.parse(d)); } catch (e) { reject(e); }
+        });
+      });
+      req2.on("error", reject);
+      req2.write(buf);
+      req2.end();
+    });
+
+    if (result.error) return res.status(400).json({ error: result.error.message });
+    const url = result.fields?.Headshot?.[0]?.url || "";
+    res.json({ url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // --- MongoDB ---
 let isConnected = false;
 
@@ -130,6 +371,7 @@ const connectDB = async () => {
 };
 
 exports.api = onRequest({ secrets: [AIRTABLE_PAT] }, async (req, res) => {
-  await connectDB();
+  // sign-in through Arcos needs no database
+  if (!String(req.path || req.url || "").startsWith("/api/arcos/")) await connectDB();
   app(req, res);
 });

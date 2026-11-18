@@ -10,6 +10,7 @@ export enum MutationType {
   RetrieveUserID = "RETRIEVE_USERID",
   updateHover = "UPDATE_HOVER",
   removeSelfAvailability = "REMOVE_SELF_AVAILABILITY",
+  setSelectedParticipant = "SET_SELECTED_PARTICIPANT",
 }
 
 export type Mutations = {
@@ -22,6 +23,7 @@ export type Mutations = {
   [MutationType.AddUserName](state: State, user: User): void;
   [MutationType.RetrieveUserID](state: State, content: any): void;
   [MutationType.updateHover](state: State, unixtime: string): void;
+  [MutationType.setSelectedParticipant](state: State, id: string | null): void;
 };
 
 export const mutations: MutationTree<State> & Mutations = {
@@ -45,13 +47,21 @@ export const mutations: MutationTree<State> & Mutations = {
     });
   },
   [MutationType.AddUserName](state, user) {
-    state.eventData.users.push(user);
+    if (!state.eventData.users.some((u) => u.id === user.id)) {
+      state.eventData.users.push(user);
+    }
     state.userID = user.id;
   },
   [MutationType.RetrieveUserID](state, eventID) {
     const userStorage = localStorage.getItem(eventID);
     if (userStorage != null) {
-      state.userID = userStorage;
+      const isValid = state.eventData.users.some((u) => u.id === userStorage);
+      if (isValid) {
+        state.userID = userStorage;
+      } else {
+        // Stale or ghost ID — clear so auto-register fires with correct ID
+        localStorage.removeItem(eventID);
+      }
     }
   },
   [MutationType.updateHover](state, unixtime) {
@@ -67,5 +77,8 @@ export const mutations: MutationTree<State> & Mutations = {
         unixtime
       ].filter((userid) => userid !== state.userID);
     }
+  },
+  [MutationType.setSelectedParticipant](state, id) {
+    state.selectedParticipantId = id;
   },
 };

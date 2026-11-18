@@ -1,0 +1,49 @@
+# MeetingOS: handoff
+
+meeting.dearcrisis.com is this repo: a Vue client (`client/`, built into `backend/public/`) on Firebase Hosting, with one Cloud Function `api` (`functions/index.js`) in Firebase project `meetingos-vonwong`.
+
+## 2026-11-18: deployed, the Arcos login is live
+
+Ben gave the go-ahead and `firebase deploy --only hosting,functions:api --project meetingos-vonwong` ran from `arcos-login`. The `api` function updated (Node 22, 2nd gen, us-central1) and hosting released.
+
+Verified on meeting.dearcrisis.com straight after:
+
+- `GET /api/arcos/roster?q=von` answers 200 with real Arcos people, so the relay reaches Arcos from Google's addresses as intended.
+- The shipped bundle `js/app.1ffbbfdc.js` calls only `/api/arcos/roster`, `/api/arcos/options`, `/api/arcos/start` and `/api/arcos/verify`. No Airtable call is left in the client.
+- `/api/participants` still answers 200, left in place for browsers holding the old cached page.
+
+Still unproven: a correct 6-digit code end to end. Testing it means Arcos texting or emailing a real person, so Ben signs in with his own profile once to close it out.
+
+**Wider ask, same day.** Ben asked for an audit of every tool we have built and for all of their logins to move to Arcos, the way beta.dearcrisis.com and now MeetingOS work. That work is tracked outside this repo; anything MeetingOS-specific lands here.
+
+## 2026-11-17: sign-in through Arcos (branch `arcos-login`)
+
+**Ben's ask:** "People that should be able to login into this tool should be anyone with an Arcos profile or who is on our Arcos database."
+
+**What was wrong.** The login searched a legacy Airtable view (72 people, `Data Type` People or Participant) and checked the typed phone against Airtable's `Phone Contact`. Anyone added to the community since then, which now lives in Arcos, could not find their name.
+
+**What changed.**
+
+- `functions/index.js` has four relays to Arcos's own public door endpoints, the same ones beta.dearcrisis.com's sign-in uses, for space `dearcrisisnyc`: `GET /api/arcos/roster?q=` (name search, at most 8 names, 2 characters at least), `POST /api/arcos/options` (which ways in a profile offers, sends nothing), `POST /api/arcos/start` (Arcos texts or emails a 6-digit code to the contact on the profile), `POST /api/arcos/verify` (checks the code). They exist because Arcos sends no CORS headers for this origin. The Arcos session a correct code returns is never sent to the browser; the app only stores the name and the Arcos person id. These routes skip the MongoDB connection.
+- `client/src/views/Login.vue`: find your name, then text or email a code (a choice when the profile has both), then the code. Text falls back to email the way beta's door does. Join mode (an event link) still offers "Join as guest".
+- Who gets in: Arcos's roster answers for anyone on a Dear Crisis guest list plus any member holding a profile. A sample of 12 of the 72 Airtable names were all found in Arcos.
+- `auth-bridge.html` (posts the stored identity to info.dearcrisis.com) moved to `client/public/` so builds stop deleting it.
+- The first commit on the branch records what was already deployed but never committed (event-link join mode, date label fixes, how-it-works order, auth-bridge, `scripts/dedup-event.mjs`).
+
+**Side effect to know.** Verifying a code goes through Arcos's claim flow, as on beta: someone whose profile has no account yet gets an Arcos account tied to that profile, and the email's link opens the community app. That is the same thing that happens when they sign in to beta.
+
+**Checked.** Production build passes (`client`: `NODE_OPTIONS=--openssl-legacy-provider npx vue-cli-service build`). The real function ran locally behind a small harness: roster search, options (masked contacts, nothing sent), bad input refused, and a wrong code against Ben's own profile refused with Arcos's message. In the browser: name search, the text-or-email choice, the not-found state at 375 px. **Not checked:** a real code end to end (it would text or email a member).
+
+**Known limits.**
+
+- Every call reaches Arcos from Google's addresses, so Arcos's per-visitor limits (20 option lookups a minute, Supabase's code limits) count all MeetingOS visitors together. Fine at salon scale. If it bites, Arcos accepts a signed `X-Visitor-IP` (beta's `dcapp/worker/visitor.js`, secret `VISITOR_IP_SECRET`, which only Vincent can share).
+- The profile panel (avatar button) still edits Airtable and only shows for old `rec…` ids. People signed in through Arcos see "Sign out" instead; their profile lives on beta.dearcrisis.com.
+- `/api/participants` and `/api/verify` (the Airtable path) are left in place for browsers still running the old page; nothing new calls them.
+- The dev server shows a pre-existing lint error in `NewEvent.vue` (`_windowOrder`, `vue/no-reserved-keys`); the production build ignores it.
+
+## Waiting on Ben
+
+1. ~~**Deploy**~~ Done 2026-11-18, see the section above.
+2. **Sign in once on the live site** with your own profile, to prove a correct code arrives and is accepted. Nobody has done this yet.
+3. **Merge** `arcos-login` into `main` (needs Ben's go-ahead). Local `main` was 17 commits ahead of GitHub (the April profile and participant work); those are on this branch too.
+4. **Decide the Airtable cleanup.** `/api/participants` and `/api/verify` are dead to the client but still answer, and the profile panel still writes to Airtable for old `rec…` ids. Ben has not said whether to strip them or keep them as the safety net.

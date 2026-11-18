@@ -45,35 +45,9 @@
         </div>
 
         <!-- Step 2 -->
-        <div class="feature-row reverse">
-          <div class="feature-text">
-            <div class="feat-num">02</div>
-            <h2 class="feat-title">Share the link</h2>
-            <p class="feat-desc">Hit <strong>Share</strong> and send the URL to your group. Anyone with the link can participate — no account, no download, no friction.</p>
-          </div>
-          <div class="feature-visual">
-            <div class="mock-share">
-              <div class="mock-url">
-                <span class="url-dim">meeting.dearcrisis.com/</span><span class="url-id">e8f3a2</span>
-              </div>
-              <div class="mock-copy-row">
-                <div class="mock-copy-btn">⬆ Share — Copy link</div>
-              </div>
-              <div class="mock-avatars">
-                <div class="mock-av" style="background:rgba(232,93,74,.2);border-color:rgba(232,93,74,.35)">BV</div>
-                <div class="mock-av" style="background:rgba(100,200,140,.15);border-color:rgba(100,200,140,.3)">HE</div>
-                <div class="mock-av" style="background:rgba(120,160,255,.15);border-color:rgba(120,160,255,.3)">MK</div>
-                <div class="mock-av-more">+4</div>
-                <span class="mock-av-label">joined</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Step 3 -->
         <div class="feature-row">
           <div class="feature-text">
-            <div class="feat-num">03</div>
+            <div class="feat-num">02</div>
             <h2 class="feat-title">Mark when you're free</h2>
             <p class="feat-desc">In <strong>Edit</strong> mode, tap or drag across the calendar to highlight your available times. Green blocks mean you're in.</p>
           </div>
@@ -92,6 +66,32 @@
                 </div>
               </div>
               <div class="mock-drag-hint">← drag to select</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="feature-row reverse">
+          <div class="feature-text">
+            <div class="feat-num">03</div>
+            <h2 class="feat-title">Share the link</h2>
+            <p class="feat-desc">Hit <strong>Share</strong> and send the URL to your group. Anyone with the link can participate — no account, no download, no friction.</p>
+          </div>
+          <div class="feature-visual">
+            <div class="mock-share">
+              <div class="mock-url">
+                <span class="url-dim">meeting.dearcrisis.com/</span><span class="url-id">e8f3a2</span>
+              </div>
+              <div class="mock-copy-row">
+                <div class="mock-copy-btn">⬆ Share — Copy link</div>
+              </div>
+              <div class="mock-avatars">
+                <div class="mock-av" style="background:rgba(232,93,74,.2);border-color:rgba(232,93,74,.35)">BV</div>
+                <div class="mock-av" style="background:rgba(100,200,140,.15);border-color:rgba(100,200,140,.3)">HE</div>
+                <div class="mock-av" style="background:rgba(120,160,255,.15);border-color:rgba(120,160,255,.3)">MK</div>
+                <div class="mock-av-more">+4</div>
+                <span class="mock-av-label">joined</span>
+              </div>
             </div>
           </div>
         </div>

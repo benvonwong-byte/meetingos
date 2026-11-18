@@ -46,21 +46,43 @@
               <div class="step-num">1</div>
               <div class="step-body">
                 <div class="step-name">Share this link</div>
-                <p class="step-desc">Copy the URL from your browser and send it to everyone you want to schedule with.</p>
+                <p class="step-desc">Hit the <strong>Share</strong> button to copy the URL, then send it to your group.</p>
+                <div class="step-visual sv-share">
+                  <div class="sv-url">meeting.dearcrisis.com/<span>e8f3a2</span></div>
+                  <div class="sv-copy">⬆ Share — Copy link</div>
+                </div>
               </div>
             </div>
             <div class="help-step">
               <div class="step-num">2</div>
               <div class="step-body">
-                <div class="step-name">Everyone marks when they're free</div>
-                <p class="step-desc">In <strong>Edit</strong> mode, tap or drag across the calendar blocks to highlight your available times. Green = available.</p>
+                <div class="step-name">Tap or drag to mark your availability</div>
+                <p class="step-desc">In <strong>Edit</strong> mode, tap individual blocks or drag across multiple to mark when you're free.</p>
+                <div class="step-visual sv-cal">
+                  <div class="sv-mode-row"><span class="sv-badge active">✏ Edit</span><span class="sv-badge">👁 View</span></div>
+                  <div class="sv-grid">
+                    <div class="sv-cell"></div><div class="sv-cell sv-sel"></div><div class="sv-cell sv-sel"></div><div class="sv-cell"></div>
+                    <div class="sv-cell"></div><div class="sv-cell sv-sel"></div><div class="sv-cell sv-sel"></div><div class="sv-cell"></div>
+                    <div class="sv-cell"></div><div class="sv-cell"></div><div class="sv-cell sv-sel"></div><div class="sv-cell"></div>
+                  </div>
+                  <div class="sv-hint">← drag across blocks</div>
+                </div>
               </div>
             </div>
             <div class="help-step">
               <div class="step-num">3</div>
               <div class="step-body">
-                <div class="step-name">Find the best overlap</div>
-                <p class="step-desc">Switch to <strong>View</strong> mode and hover over the calendar. Darker green means more people are free. Tap any slot to see who's in.</p>
+                <div class="step-name">Switch to View to find the overlap</div>
+                <p class="step-desc">Darker green = more people free at that time. Tap or hover any slot to see exactly who's available.</p>
+                <div class="step-visual sv-view">
+                  <div class="sv-mode-row"><span class="sv-badge">✏ Edit</span><span class="sv-badge active">👁 View</span></div>
+                  <div class="sv-grid">
+                    <div class="sv-cell" style="background:hsla(145,25%,64%,.22)"></div><div class="sv-cell" style="background:hsla(145,55%,48%,.65)"></div><div class="sv-cell" style="background:hsla(145,70%,38%,.9)"></div><div class="sv-cell" style="background:hsla(145,40%,54%,.45)"></div>
+                    <div class="sv-cell" style="background:hsla(145,40%,54%,.45)"></div><div class="sv-cell" style="background:hsla(145,70%,38%,.9)"></div><div class="sv-cell" style="background:hsla(145,70%,38%,.9)"></div><div class="sv-cell" style="background:hsla(145,25%,64%,.22)"></div>
+                    <div class="sv-cell"></div><div class="sv-cell" style="background:hsla(145,40%,54%,.45)"></div><div class="sv-cell" style="background:hsla(145,55%,48%,.65)"></div><div class="sv-cell"></div>
+                  </div>
+                  <div class="sv-inspect"><span class="svi-time">2:00 PM</span><span class="svi-count">3<span>/4</span></span><span class="svi-names">BV · HE · MK</span></div>
+                </div>
               </div>
             </div>
           </div>
@@ -112,6 +134,15 @@
     </div>
   </div>
 
+  <!-- Mobile touch tip -->
+  <transition name="tip-fade">
+    <div class="touch-tip" v-if="showTip">
+      <span class="tip-icon">☝</span>
+      <span class="tip-text">One finger to select &nbsp;·&nbsp; Two fingers to scroll</span>
+      <button class="tip-close" @click="dismissTip" aria-label="Dismiss">✕</button>
+    </div>
+  </transition>
+
   <!-- Persistent inspect panel — slides up from bottom, mobile only -->
   <transition name="panel-slide">
     <div class="inspect-panel" v-if="viewMode && inspectedSlot">
@@ -154,6 +185,8 @@ export default {
     const inspectedSlot = ref(null);
     const showHelp = ref(false);
     const copied = ref(false);
+    const showTip = ref(!localStorage.getItem("dc_touch_tip"));
+    const dismissTip = () => { showTip.value = false; localStorage.setItem("dc_touch_tip", "1"); };
 
     // Auto-register once event data loads, no modal needed
     watch(
@@ -184,6 +217,31 @@ export default {
       }
     });
 
+    watch(
+      () => store.state.selectedParticipantId,
+      (id) => {
+        if (!id) return;
+
+        const pages = store.getters.getSplitAvailabilities;
+        const avail = store.getters.getAvailability;
+
+        const currentPageSlots = pages[page.value]?.flat() ?? [];
+        const hasOnCurrentPage = currentPageSlots.some(
+          (slot) => avail[slot]?.includes(id)
+        );
+
+        if (hasOnCurrentPage) return;
+
+        for (let p = 0; p < pages.length; p++) {
+          const slots = pages[p].flat();
+          if (slots.some((slot) => avail[slot]?.includes(id))) {
+            page.value = p;
+            return;
+          }
+        }
+      }
+    );
+
     const openInspect = ({ hour }) => {
       if (!hour) { inspectedSlot.value = null; return; }
 
@@ -196,9 +254,9 @@ export default {
 
       const ts = parseInt(hour) * 1000;
       const d = new Date(ts);
-      const h = d.getHours();
+      const h = d.getUTCHours();
       const timeLabel = `${h % 12 || 12}:00 ${h >= 12 ? "PM" : "AM"}`;
-      const dateLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      const dateLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
 
       inspectedSlot.value = { hour, names, timeLabel, dateLabel };
       store.dispatch("UPDATE_HOVER", hour);
@@ -210,6 +268,7 @@ export default {
     return {
       clearAll, page, viewMode, inspectedSlot, participantCount,
       showHelp, copied, shareLink,
+      showTip, dismissTip,
       openInspect, initials,
       eventRange: computed(() => store.getters.getTopLabel),
       pageNumbers: computed(() => store.getters.getPageNumbers),
@@ -500,8 +559,53 @@ export default {
 
 .step-body { flex: 1; }
 .step-name { font-size: .88rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.step-desc { font-size: .8rem; color: var(--text-secondary); line-height: 1.5; }
+.step-desc { font-size: .78rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 10px; }
 .step-desc strong { color: var(--text); }
+
+/* Step visual previews */
+.step-visual {
+  border-radius: var(--radius-xs); border: 1px solid var(--border);
+  background: rgba(10,10,10,.6); overflow: hidden;
+}
+.sv-share { display: flex; flex-direction: column; gap: 0; }
+.sv-url {
+  padding: 7px 10px; font-size: .68rem; color: var(--text-dim); border-bottom: 1px solid var(--border);
+  span { color: var(--accent); font-weight: 600; }
+}
+.sv-copy {
+  padding: 7px 10px; font-size: .72rem; font-weight: 600; color: var(--text-secondary);
+  text-align: center; background: rgba(245,240,232,.04);
+}
+.sv-mode-row {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border);
+}
+.sv-badge {
+  flex: 1; text-align: center; padding: 5px 0; font-size: .65rem;
+  color: var(--text-dim); border-right: 1px solid var(--border);
+  &:last-child { border-right: none; }
+  &.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+}
+.sv-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 2px; padding: 8px;
+}
+.sv-cell {
+  height: 16px; border-radius: 2px;
+  background: rgba(245,240,232,.05); border: 1px solid rgba(245,240,232,.07);
+  &.sv-sel { background: hsla(145,55%,48%,.65); border-color: rgba(100,200,140,.3); }
+}
+.sv-hint {
+  padding: 4px 8px 6px; font-size: .62rem; color: var(--text-dim); text-align: center; letter-spacing: .04em;
+}
+.sv-inspect {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border-top: 1px solid var(--border); background: rgba(245,240,232,.03);
+}
+.svi-time { font-size: .72rem; font-weight: 600; color: var(--text); }
+.svi-count {
+  font-size: .82rem; font-weight: 700; color: rgba(100,200,140,.9);
+  span { font-size: .65rem; opacity: .55; }
+}
+.svi-names { font-size: .65rem; color: var(--text-dim); }
 
 .help-share-cta {
   width: 100%; padding: 12px; font-size: .88rem; font-weight: 600;
@@ -513,4 +617,41 @@ export default {
 
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity .2s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+/* Touch tip — mobile only */
+.touch-tip {
+  display: none;
+  @media (hover: none) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    background: rgba(18, 18, 18, 0.92);
+    border: 1px solid var(--border-hover);
+    border-radius: 100px;
+    padding: 10px 16px 10px 14px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.55);
+    backdrop-filter: blur(12px);
+    white-space: nowrap;
+    max-width: calc(100vw - 32px);
+  }
+}
+.tip-icon { font-size: 1rem; flex-shrink: 0; }
+.tip-text { font-size: .78rem; color: var(--text-secondary); }
+.tip-close {
+  flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-dim); font-size: .8rem; padding: 0 0 0 6px;
+  line-height: 1;
+  &:hover { color: var(--text); }
+}
+
+.tip-fade-enter-active { transition: opacity .4s ease, transform .4s ease; }
+.tip-fade-leave-active { transition: opacity .25s ease, transform .25s ease; }
+.tip-fade-enter-from  { opacity: 0; transform: translateX(-50%) translateY(10px); }
+.tip-fade-leave-to    { opacity: 0; transform: translateX(-50%) translateY(6px); }
 </style>

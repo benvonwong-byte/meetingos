@@ -11,6 +11,7 @@ export enum ActionTypes {
   addUserName = "ADD_USERNAME",
   updateHover = "UPDATE_HOVER",
   removeSelfAvailability = "REMOVE_SELF_AVAILABILITY",
+  setSelectedParticipant = "SET_SELECTED_PARTICIPANT",
 }
 
 type ActionAugments = Omit<ActionContext<State, State>, "commit"> & {
@@ -32,6 +33,7 @@ export type Actions = {
   [ActionTypes.updateDatabase](context: ActionAugments): void;
   [ActionTypes.addUserName](context: ActionAugments, payload: any): void;
   [ActionTypes.updateHover](context: ActionAugments, unixtime: string): void;
+  [ActionTypes.setSelectedParticipant](context: ActionAugments, id: string | null): void;
 };
 
 export const actions: ActionTree<State, State> & Actions = {
@@ -47,9 +49,13 @@ export const actions: ActionTree<State, State> & Actions = {
     commit(MutationType.RemoveAvailability, payload);
   },
   async [ActionTypes.updateDatabase]({ state }) {
-    await instance.put(`/${state.eventData._id}/update`, {
-      availability: state.eventData.availability,
-    });
+    const userID = state.userID;
+    if (!userID) return;
+    // Send only this user's marked slots — server merges atomically
+    const slots = Object.entries(state.eventData.availability as Record<string, string[]>)
+      .filter(([, ids]) => ids.includes(userID))
+      .map(([slot]) => slot);
+    await instance.put(`/${state.eventData._id}/update`, { userId: userID, slots });
   },
   async [ActionTypes.addUserName]({ commit }, { username, eventID }) {
     // add user entry to database
@@ -66,5 +72,8 @@ export const actions: ActionTree<State, State> & Actions = {
   async [ActionTypes.removeSelfAvailability]({ commit, dispatch }) {
     commit(MutationType.removeSelfAvailability);
     dispatch("UPDATE_DATABASE");
+  },
+  [ActionTypes.setSelectedParticipant]({ commit }, id) {
+    commit(MutationType.setSelectedParticipant, id);
   },
 };
